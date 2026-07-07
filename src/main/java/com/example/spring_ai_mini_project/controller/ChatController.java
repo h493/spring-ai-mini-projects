@@ -1,6 +1,7 @@
 package com.example.spring_ai_mini_project.controller;
 
 import com.example.spring_ai_mini_project.dto.Poem;
+import com.example.spring_ai_mini_project.dto.Song;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.PromptTemplate;
@@ -8,7 +9,6 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,7 +25,7 @@ public class ChatController {
     @GetMapping("/poem")
     public Poem getPoem(@RequestParam String topic, @RequestParam("lang") String language){
 
-        String systemPrompt = """ 
+        String systemPrompt = """
                 you are a sarcastic poet.
                 Give a poem on topic : {topic} and in language : {language}
                 """;
@@ -41,42 +41,25 @@ public class ChatController {
     }
 
     @GetMapping("/match-vibe")
-    public String vibePlayListMatcher(@RequestParam String feeling){
+    public String vibePlayListMatcher(@RequestParam String feeling,
+                                      @RequestParam(required = false) String genre){
 
-        List<Document> documents = vectorStore.similaritySearch(
-                SearchRequest.builder()
-                        .query(feeling)
-                        .topK(3)
-                        .build()
-        );
+        SearchRequest.Builder request = SearchRequest.builder()
+                .query(feeling)
+                .topK(3);
 
-        String context = String.join("\n\n", documents.stream().map(Document::getText).toList());
+        if (genre != null && !genre.isBlank()) {
+            request.filterExpression("genre == '" + genre + "'");
+        }
 
-        String template = """
-                Answer the question using only the context below.
-                If the answer is not in the context, say you don't know.
+        List<Document> documents = vectorStore.similaritySearch(request.build());
 
-                Context:
-                {context}
-
-                Feeling:
-                {feeling}
-                """;
-
-        PromptTemplate promptTemplate = new PromptTemplate(template);
-        String renderedPrompt = promptTemplate.render(Map.of(
-                "context", context,
-                "feeling", feeling));
-
-        return chatClient.prompt()
-                .user(renderedPrompt)
-                .call()
-                .content();
+        return documents.isEmpty() ? "No Match" : documents.get(0).getText();
     }
 
-    public void addSongs(List<String> songs){
+    public void addSongs(List<Song> songs){
         List<Document> documents = songs.stream()
-                .map(Document::new)
+                .map(Song::toDocument)
                 .toList();
         vectorStore.add(documents);
     }
