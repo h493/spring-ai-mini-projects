@@ -23,7 +23,7 @@ public class ChatController {
     private final VectorStore vectorStore;
 
     @GetMapping("/poem")
-    public Poem getPoem(@RequestParam String topic, @RequestParam String language){
+    public Poem getPoem(@RequestParam String topic, @RequestParam("lang") String language){
 
         String systemPrompt = """ 
                 you are a sarcastic poet.
