@@ -7,6 +7,6 @@ import java.util.Map;
 public record Song(String description, String genre) {
 
     public Document toDocument() {
-        return new Document(description, Map.of("genre", genre));
+        return new Document(description, Map.of("genre", genre, "type", "song"));
     }
 }

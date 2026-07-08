@@ -13,7 +13,9 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Seeds the "vibe" playlist into the PGVector store on startup so that
@@ -27,7 +29,7 @@ public class SongDataLoader implements CommandLineRunner {
 
     private final VectorStore vectorStore;
 
-    @Value("classPath:Himanshu_Chhikara_Resume_SDE2.pdf")
+    @Value("classpath:Himanshu_Chhikara_Resume_SDE2.pdf")
     Resource pdfFile;
 
     private static final List<Song> SONGS = List.of(
@@ -61,17 +63,24 @@ public class SongDataLoader implements CommandLineRunner {
         }
     }
 
-    private boolean isAlreadySeeded(String query) {
+    /**
+     * Checks whether documents of a given {@code type} have already been seeded.
+     * The filter expression restricts candidates to that type, so an empty result
+     * reliably means "not seeded" — unlike an unfiltered search, which would match
+     * the nearest document of any type and always look "already seeded".
+     */
+    private boolean isAlreadySeeded(String type) {
         return !vectorStore.similaritySearch(
                 SearchRequest.builder()
-                        .query(query)
+                        .query(type)
                         .topK(1)
+                        .filterExpression("type == '" + type + "'")
                         .build()
         ).isEmpty();
     }
 
     private void ingestPdf(){
-        if (isAlreadySeeded("pdf")) {
+        if (isAlreadySeeded("resume")) {
             log.info("Pdf already present in vector store, skipping seed.");
         }else {
             PagePdfDocumentReader reader = new PagePdfDocumentReader(pdfFile);
@@ -81,7 +90,13 @@ public class SongDataLoader implements CommandLineRunner {
                     .withChunkSize(200)
                     .build();
 
-            List<Document> documents = tokenTextSplitter.apply(pages);
+            List<Document> documents = tokenTextSplitter.apply(pages).stream()
+                    .map(chunk -> {
+                        Map<String, Object> metadata = new HashMap<>(chunk.getMetadata());
+                        metadata.put("type", "resume");
+                        return new Document(chunk.getText(), metadata);
+                    })
+                    .toList();
             vectorStore.add(documents);
             log.info("Seeded {} pages into the vector store.", documents.size());
         }
