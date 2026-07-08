@@ -4,7 +4,9 @@ import com.example.spring_ai_mini_project.dto.Poem;
 import com.example.spring_ai_mini_project.dto.Song;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
@@ -22,6 +24,7 @@ public class ChatController {
 
     private final ChatClient chatClient;
     private final VectorStore vectorStore;
+    private final ChatMemory chatMemory;
 
     @GetMapping("/poem")
     public Poem getPoem(@RequestParam String topic, @RequestParam("lang") String language){
@@ -74,5 +77,20 @@ public class ChatController {
                 .call()
                 .content();
     }
+
+
+    @GetMapping("/ask-ai")
+    public String askAI(@RequestParam String prompt){
+        return chatClient.prompt()
+                .user(prompt)
+                .advisors(
+                        MessageChatMemoryAdvisor.builder(chatMemory)
+                                .build()
+                )
+                .call()
+                .content();
+    }
+
+
 
 }
