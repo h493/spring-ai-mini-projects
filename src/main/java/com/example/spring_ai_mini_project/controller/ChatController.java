@@ -66,7 +66,7 @@ public class ChatController {
                         QuestionAnswerAdvisor.builder(vectorStore)
                                 .searchRequest(SearchRequest.builder()
                                         .topK(4)
-                                        .similarityThreshold(0.7)
+                                        .filterExpression("file_name == 'Himanshu_Chhikara_Resume_SDE2.pdf'" )
                                         .build())
                                 .build()
                 )
