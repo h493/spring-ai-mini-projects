@@ -97,14 +97,15 @@ public class ChatController {
 
 
     @PostMapping("/chat/stock-bot")
-    public String askStockBot(@RequestBody String message){
+    public String askStockBot(@RequestBody String message,
+                              @RequestParam(defaultValue = "default") String conversationId){
         return chatClient.prompt()
                 .user(message)
                 .tools(stockTools)
-                .advisors(
-                        MessageChatMemoryAdvisor.builder(chatMemory)
-                                .build()
-                )
+                .advisors(advisor -> advisor
+                        .advisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
+                        // required in Spring AI 2.0 — no implicit default conversation id
+                        .param(ChatMemory.CONVERSATION_ID, conversationId))
                 .call()
                 .content();
     }
