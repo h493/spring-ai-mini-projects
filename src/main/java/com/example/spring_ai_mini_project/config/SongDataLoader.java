@@ -4,9 +4,13 @@ import com.example.spring_ai_mini_project.dto.Song;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
+import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -23,6 +27,9 @@ public class SongDataLoader implements CommandLineRunner {
 
     private final VectorStore vectorStore;
 
+    @Value("classPath:Himanshu_Chhikara_Resume_SDE2.pdf")
+    Resource pdfFile;
+
     private static final List<Song> SONGS = List.of(
             new Song("Fix You by Coldplay - a tender, building anthem about comforting someone who feels lost, defeated and ready to give up, promising to guide them home and help fix what hurts.", "Rock"),
             new Song("Bohemian Rhapsody by Queen - a dramatic operatic rock ballad swinging between guilt, confession, despair and explosive, defiant catharsis.", "Rock"),
@@ -38,24 +45,45 @@ public class SongDataLoader implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (isAlreadySeeded()) {
-            log.info("Songs already present in vector store, skipping seed.");
-            return;
-        }
-
-        List<Document> documents = SONGS.stream()
-                .map(Song::toDocument)
-                .toList();
-        vectorStore.add(documents);
-        log.info("Seeded {} songs into the vector store.", documents.size());
+        ingestSongs();
+        ingestPdf();
     }
 
-    private boolean isAlreadySeeded() {
+    private void ingestSongs(){
+        if (isAlreadySeeded("song")) {
+            log.info("Songs already present in vector store, skipping seed.");
+        }else {
+            List<Document> documents = SONGS.stream()
+                    .map(Song::toDocument)
+                    .toList();
+            vectorStore.add(documents);
+            log.info("Seeded {} songs into the vector store.", documents.size());
+        }
+    }
+
+    private boolean isAlreadySeeded(String query) {
         return !vectorStore.similaritySearch(
                 SearchRequest.builder()
-                        .query("song")
+                        .query(query)
                         .topK(1)
                         .build()
         ).isEmpty();
+    }
+
+    private void ingestPdf(){
+        if (isAlreadySeeded("pdf")) {
+            log.info("Pdf already present in vector store, skipping seed.");
+        }else {
+            PagePdfDocumentReader reader = new PagePdfDocumentReader(pdfFile);
+            List<Document> pages = reader.get();
+
+            TokenTextSplitter tokenTextSplitter = TokenTextSplitter.builder()
+                    .withChunkSize(200)
+                    .build();
+
+            List<Document> documents = tokenTextSplitter.apply(pages);
+            vectorStore.add(documents);
+            log.info("Seeded {} pages into the vector store.", documents.size());
+        }
     }
 }

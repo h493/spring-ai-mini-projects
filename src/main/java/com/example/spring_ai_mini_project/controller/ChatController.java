@@ -4,6 +4,7 @@ import com.example.spring_ai_mini_project.dto.Poem;
 import com.example.spring_ai_mini_project.dto.Song;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
@@ -57,10 +58,21 @@ public class ChatController {
         return documents.isEmpty() ? "No Match" : documents.get(0).getText();
     }
 
-    public void addSongs(List<Song> songs){
-        List<Document> documents = songs.stream()
-                .map(Song::toDocument)
-                .toList();
-        vectorStore.add(documents);
+    @GetMapping("/resume-info")
+    public String askResumeInfo(@RequestParam String question){
+        return chatClient.prompt()
+                .advisors(
+                        //RAG advisor with custom tuning
+                        QuestionAnswerAdvisor.builder(vectorStore)
+                                .searchRequest(SearchRequest.builder()
+                                        .topK(4)
+                                        .similarityThreshold(0.7)
+                                        .build())
+                                .build()
+                )
+                .user(question)
+                .call()
+                .content();
     }
+
 }
