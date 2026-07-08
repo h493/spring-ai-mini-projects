@@ -5,6 +5,7 @@ import com.example.spring_ai_mini_project.dto.Song;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.SafeGuardAdvisor;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.prompt.PromptTemplate;
@@ -85,7 +86,8 @@ public class ChatController {
         return chatClient.prompt()
                 .user(prompt)
                 .advisors(advisor -> advisor
-                        .advisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
+                        .advisors(MessageChatMemoryAdvisor.builder(chatMemory).build(),
+                                new SafeGuardAdvisor(List.of("competitor")))
                         // required in Spring AI 2.0 — identifies which conversation's
                         // history to load/save; there is no implicit default anymore.
                         .param(ChatMemory.CONVERSATION_ID, conversationId))
