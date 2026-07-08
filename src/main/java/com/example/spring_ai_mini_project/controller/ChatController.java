@@ -80,13 +80,15 @@ public class ChatController {
 
 
     @GetMapping("/ask-ai")
-    public String askAI(@RequestParam String prompt){
+    public String askAI(@RequestParam String prompt,
+                        @RequestParam(defaultValue = "default") String conversationId){
         return chatClient.prompt()
                 .user(prompt)
-                .advisors(
-                        MessageChatMemoryAdvisor.builder(chatMemory)
-                                .build()
-                )
+                .advisors(advisor -> advisor
+                        .advisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
+                        // required in Spring AI 2.0 — identifies which conversation's
+                        // history to load/save; there is no implicit default anymore.
+                        .param(ChatMemory.CONVERSATION_ID, conversationId))
                 .call()
                 .content();
     }
