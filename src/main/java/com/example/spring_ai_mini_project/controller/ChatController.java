@@ -2,6 +2,7 @@ package com.example.spring_ai_mini_project.controller;
 
 import com.example.spring_ai_mini_project.dto.Poem;
 import com.example.spring_ai_mini_project.dto.Song;
+import com.example.spring_ai_mini_project.tools.StockTools;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
@@ -12,9 +13,7 @@ import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +25,7 @@ public class ChatController {
     private final ChatClient chatClient;
     private final VectorStore vectorStore;
     private final ChatMemory chatMemory;
+    private final StockTools stockTools;
 
     @GetMapping("/poem")
     public Poem getPoem(@RequestParam String topic, @RequestParam("lang") String language){
@@ -96,5 +96,17 @@ public class ChatController {
     }
 
 
+    @PostMapping("/chat/stock-bot")
+    public String askStockBot(@RequestBody String message){
+        return chatClient.prompt()
+                .user(message)
+                .tools(stockTools)
+                .advisors(
+                        MessageChatMemoryAdvisor.builder(chatMemory)
+                                .build()
+                )
+                .call()
+                .content();
+    }
 
 }
