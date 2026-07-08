@@ -2,6 +2,7 @@ package com.example.spring_ai_mini_project.controller;
 
 import com.example.spring_ai_mini_project.dto.Poem;
 import com.example.spring_ai_mini_project.dto.Song;
+import com.example.spring_ai_mini_project.tools.RouterTools;
 import com.example.spring_ai_mini_project.tools.StockTools;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
@@ -26,6 +27,7 @@ public class ChatController {
     private final VectorStore vectorStore;
     private final ChatMemory chatMemory;
     private final StockTools stockTools;
+    private final RouterTools routerTools;
 
     @GetMapping("/poem")
     public Poem getPoem(@RequestParam String topic, @RequestParam("lang") String language){
@@ -105,6 +107,39 @@ public class ChatController {
                 .advisors(advisor -> advisor
                         .advisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                         // required in Spring AI 2.0 — no implicit default conversation id
+                        .param(ChatMemory.CONVERSATION_ID, conversationId))
+                .call()
+                .content();
+    }
+
+
+    // Homework #6 — Customer Support Agent: RAG (user manual) + tool calling
+    // (rebootRouter) + chat memory, so a multi-turn support conversation works.
+    @PostMapping("/chat/support")
+    public String customerSupport(@RequestBody String message,
+                                  @RequestParam(defaultValue = "default") String conversationId){
+        return chatClient.prompt()
+                .system("""
+                        You are a customer support agent for the Home Router RX-500.
+                        The current customer's router serial number is RX500-00123.
+                        Answer how-to and troubleshooting questions using the provided
+                        user-manual context. If the customer asks you to restart, reboot,
+                        or power-cycle their router, call the rebootRouter tool with their
+                        serial number.
+                        """)
+                .user(message)
+                .tools(routerTools)
+                .advisors(advisor -> advisor
+                        .advisors(
+                                // RAG over just the router manual
+                                QuestionAnswerAdvisor.builder(vectorStore)
+                                        .searchRequest(SearchRequest.builder()
+                                                .topK(4)
+                                                .filterExpression("type == 'manual'")
+                                                .build())
+                                        .build(),
+                                // memory so the two-step flow shares context
+                                MessageChatMemoryAdvisor.builder(chatMemory).build())
                         .param(ChatMemory.CONVERSATION_ID, conversationId))
                 .call()
                 .content();
